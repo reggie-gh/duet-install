@@ -1,0 +1,351 @@
+diff --git a/DuetPkg/CreateBootDisk.sh b/DuetPkg/CreateBootDisk.sh
+index 8d8543f..f4ea613 100755
+--- a/DuetPkg/CreateBootDisk.sh
++++ b/DuetPkg/CreateBootDisk.sh
+@@ -34,7 +34,7 @@ if [ \
+      "$*" = "--help" \
+    ]
+ then
+-	echo "Usage: CreateBootDisk [usb|floppy|ide|file] MediaPath DevicePath [FAT12|FAT16|FAT32] [IA32|X64] [GCC44|UNIXGCC]"
++	echo "Usage: CreateBootDisk [usb|floppy|ide|file] MediaPath DevicePath [FAT12|FAT16|FAT32] [IA32|X64] [UNIXGCC|GCC44|GCC45|GCC46|GCC47|GCC48] [DEBUG|RELEASE]"
+ 	echo "e.g. : CreateBootDisk floppy /media/floppy0 /dev/fd0 FAT12 IA32"
+ 	PROCESS_MARK=FALSE
+ fi
+@@ -58,8 +58,19 @@ else
+   TOOLCHAIN=$6
+ fi
+ 
+-export BUILD_DIR=$WORKSPACE/Build/DuetPkg$PROCESSOR/DEBUG_$TOOLCHAIN
++case "$7" in
++   DEBUG)
++     export BUILDTARGET="DEBUG"
++     ;;
++   RELEASE)
++     export BUILDTARGET="RELEASE"
++     ;;
++   *)
++     echo Invalid Build target, should be only DEBUG or RELEASE
++     return 1
++esac
+ 
++export BUILD_DIR=$WORKSPACE/Build/DuetPkg$PROCESSOR/"$BUILDTARGET"_"$TOOLCHAIN"
+ 
+ export EFI_BOOT_MEDIA=$2
+ export EFI_BOOT_DEVICE=$3
+diff --git a/DuetPkg/DuetPkg.fdf b/DuetPkg/DuetPkg.fdf
+index 66f8b68..e1e9a81 100644
+--- a/DuetPkg/DuetPkg.fdf
++++ b/DuetPkg/DuetPkg.fdf
+@@ -51,7 +51,8 @@ INF  MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
+ INF  MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+ INF  MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf
+ 
+-INF  DuetPkg/FSVariable/FSVariable.inf
++INF  MdeModulePkg/Universal/Variable/EmuRuntimeDxe/EmuVariableRuntimeDxe.inf
++# INF  DuetPkg/FSVariable/FSVariable.inf
+ INF  MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
+ INF  MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ INF  MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+@@ -67,7 +68,7 @@ INF  MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf
+ INF  DuetPkg/SmbiosGenDxe/SmbiosGen.inf
+ #INF  DuetPkg/FvbRuntimeService/DUETFwh.inf
+ INF  IntelFrameworkModulePkg/Universal/BdsDxe/BdsDxe.inf
+-INF  MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
++# INF  MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
+ INF  MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
+ INF  UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf
+ INF  UefiCpuPkg/CpuDxe/CpuDxe.inf
+@@ -79,19 +80,24 @@ INF  PcAtChipsetPkg/8254TimerDxe/8254Timer.inf
+ INF  PcAtChipsetPkg/PcatRealTimeClockRuntimeDxe/PcatRealTimeClockRuntimeDxe.inf
+ INF  DuetPkg/PciRootBridgeNoEnumerationDxe/PciRootBridgeNoEnumeration.inf
+ INF  DuetPkg/PciBusNoEnumerationDxe/PciBusNoEnumeration.inf
+-INF  IntelFrameworkModulePkg/Bus/Pci/VgaMiniPortDxe/VgaMiniPortDxe.inf
+-INF  IntelFrameworkModulePkg/Universal/Console/VgaClassDxe/VgaClassDxe.inf
++# INF  IntelFrameworkModulePkg/Bus/Pci/VgaMiniPortDxe/VgaMiniPortDxe.inf
++# INF  IntelFrameworkModulePkg/Universal/Console/VgaClassDxe/VgaClassDxe.inf
+ 
+   # IDE/AHCI Support
+ INF  DuetPkg/SataControllerDxe/SataControllerDxe.inf
+ INF  MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+ INF  MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+-INF  MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+-INF  MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
++# INF  MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
++# INF  MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
++
++  ## Various FS Utilities from VirtualBox
++# INF VBoxPkg/VBoxFsDxe/VBoxIso9660.inf
++# INF VBoxPkg/VBoxFsDxe/VBoxHfs.inf
+ 
+   # Usb Support
+ INF  MdeModulePkg/Bus/Pci/UhciDxe/UhciDxe.inf
+ INF  MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
++# INF  MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+ INF  MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+ INF  MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+ INF  MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+@@ -99,9 +105,9 @@ INF  MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+   # ISA Support
+ INF  PcAtChipsetPkg/IsaAcpiDxe/IsaAcpi.inf
+ INF  IntelFrameworkModulePkg/Bus/Isa/IsaBusDxe/IsaBusDxe.inf
+-INF  IntelFrameworkModulePkg/Bus/Isa/IsaSerialDxe/IsaSerialDxe.inf
++# INF  IntelFrameworkModulePkg/Bus/Isa/IsaSerialDxe/IsaSerialDxe.inf
++# INF  IntelFrameworkModulePkg/Bus/Isa/IsaFloppyDxe/IsaFloppyDxe.inf
+ INF  IntelFrameworkModulePkg/Bus/Isa/Ps2KeyboardDxe/Ps2keyboardDxe.inf
+-INF  IntelFrameworkModulePkg/Bus/Isa/IsaFloppyDxe/IsaFloppyDxe.inf
+ 
+ INF  MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
+ INF  MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+@@ -111,6 +117,9 @@ INF  DuetPkg/BiosVideoThunkDxe/BiosVideo.inf
+   # Binary INF file to support toggle among different CPU architectures.
+ INF  RuleOverride=BINARY FatBinPkg/EnhancedFatDxe/Fat.inf
+ 
++  # Include Minimum Shell
++# INF  RuleOverride=BINARY ShellBinPkg/MinUefiShell/MinUefiShell.inf
++
+ FILE FREEFORM = PCD(gEfiIntelFrameworkModulePkgTokenSpaceGuid.PcdLogoFile) {
+     SECTION RAW = MdeModulePkg/Logo/Logo.bmp
+   }
+@@ -149,3 +158,8 @@ FILE FREEFORM = PCD(gEfiIntelFrameworkModulePkgTokenSpaceGuid.PcdLogoFile) {
+         PE32     PE32                    |.efi
+   }
+ 
++[Rule.Common.UEFI_APPLICATION.BINARY]
++  FILE APPLICATION = $(NAMED_GUID) {
++    DXE_DEPEX    DXE_DEPEX Optional      |.depex
++        PE32     PE32                    |.efi
++  }
+diff --git a/DuetPkg/DuetPkgIa32.dsc b/DuetPkg/DuetPkgIa32.dsc
+index 117bffb..a0a85e5 100644
+--- a/DuetPkg/DuetPkgIa32.dsc
++++ b/DuetPkg/DuetPkgIa32.dsc
+@@ -181,6 +181,9 @@
+   MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+   MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf
+ 
++  ## Include DUET BootSectors
++  DuetPkg/BootSector/BootSector.inf
++
+   DuetPkg/FSVariable/FSVariable.inf
+   MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
+   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+diff --git a/DuetPkg/DuetPkgX64.dsc b/DuetPkg/DuetPkgX64.dsc
+index 70b159d..2cafcaf 100644
+--- a/DuetPkg/DuetPkgX64.dsc
++++ b/DuetPkg/DuetPkgX64.dsc
+@@ -28,7 +28,7 @@
+   DSC_SPECIFICATION              = 0x00010005
+   OUTPUT_DIRECTORY               = Build/DuetPkgX64
+   SUPPORTED_ARCHITECTURES        = X64
+-  BUILD_TARGETS                  = DEBUG
++  BUILD_TARGETS                  = DEBUG|RELEASE
+   SKUID_IDENTIFIER               = DEFAULT
+   FLASH_DEFINITION               = DuetPkg/DuetPkg.fdf
+ 
+@@ -182,7 +182,11 @@
+   MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+   MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf
+ 
+-  DuetPkg/FSVariable/FSVariable.inf
++  ## Include DUET BootSectors
++  # DuetPkg/BootSector/BootSector.inf
++
++  MdeModulePkg/Universal/Variable/EmuRuntimeDxe/EmuVariableRuntimeDxe.inf
++  # DuetPkg/FSVariable/FSVariable.inf
+   MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
+   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+   MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+@@ -212,7 +216,7 @@
+     <LibraryClasses>
+       PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
+   }
+-  MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
++  # MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
+   UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf
+   UefiCpuPkg/CpuDxe/CpuDxe.inf
+   PcAtChipsetPkg/8259InterruptControllerDxe/8259.inf
+@@ -223,19 +227,24 @@
+   PcAtChipsetPkg/8254TimerDxe/8254Timer.inf
+   DuetPkg/PciRootBridgeNoEnumerationDxe/PciRootBridgeNoEnumeration.inf
+   DuetPkg/PciBusNoEnumerationDxe/PciBusNoEnumeration.inf
+-  IntelFrameworkModulePkg/Bus/Pci/VgaMiniPortDxe/VgaMiniPortDxe.inf
+-  IntelFrameworkModulePkg/Universal/Console/VgaClassDxe/VgaClassDxe.inf
++  # IntelFrameworkModulePkg/Bus/Pci/VgaMiniPortDxe/VgaMiniPortDxe.inf
++  # IntelFrameworkModulePkg/Universal/Console/VgaClassDxe/VgaClassDxe.inf
+ 
+   # IDE/AHCI Support
+   DuetPkg/SataControllerDxe/SataControllerDxe.inf
+   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+-  MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+-  MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
++  # MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
++  # MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
++
++  ## Various FS Utilities from VirtualBox
++  # VBoxPkg/VBoxFsDxe/VBoxIso9660.inf
++  # VBoxPkg/VBoxFsDxe/VBoxHfs.inf
+ 
+   # Usb Support
+   MdeModulePkg/Bus/Pci/UhciDxe/UhciDxe.inf
+   MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
++  # MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+   MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
+   MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
+   MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf
+@@ -243,9 +252,9 @@
+   # ISA Support
+   PcAtChipsetPkg/IsaAcpiDxe/IsaAcpi.inf
+   IntelFrameworkModulePkg/Bus/Isa/IsaBusDxe/IsaBusDxe.inf
+-  IntelFrameworkModulePkg/Bus/Isa/IsaSerialDxe/IsaSerialDxe.inf
++  # IntelFrameworkModulePkg/Bus/Isa/IsaSerialDxe/IsaSerialDxe.inf
++  # IntelFrameworkModulePkg/Bus/Isa/IsaFloppyDxe/IsaFloppyDxe.inf
+   IntelFrameworkModulePkg/Bus/Isa/Ps2KeyboardDxe/Ps2keyboardDxe.inf
+-  IntelFrameworkModulePkg/Bus/Isa/IsaFloppyDxe/IsaFloppyDxe.inf
+ 
+   MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+diff --git a/DuetPkg/FvbRuntimeService/FWBlockService.c b/DuetPkg/FvbRuntimeService/FWBlockService.c
+index e0ddbd5..f2637e5 100644
+--- a/DuetPkg/FvbRuntimeService/FWBlockService.c
++++ b/DuetPkg/FvbRuntimeService/FWBlockService.c
+@@ -17,7 +17,7 @@ Abstract:
+ Revision History
+ 
+ **/
+-#include "FWBlockService.h"
++#include "FwBlockService.h"
+ #include "EfiFlashMap.h"
+ #include "FileIo.h"
+ #include "FlashLayout.h"
+diff --git a/DuetPkg/Library/DuetBdsLib/BdsPlatform.c b/DuetPkg/Library/DuetBdsLib/BdsPlatform.c
+index 205c49c..bf9e348 100644
+--- a/DuetPkg/Library/DuetBdsLib/BdsPlatform.c
++++ b/DuetPkg/Library/DuetBdsLib/BdsPlatform.c
+@@ -1222,7 +1222,7 @@ Returns:
+   // have the time out
+   //
+   // BUGBUG: hard code timeout to 5 second to show logo in graphic mode.
+-  Timeout = 5;  
++  Timeout = 2;  
+   if (Timeout != 0) {
+     PlatformBdsEnterFrontPage (Timeout, FALSE);
+   }
+diff --git a/DuetPkg/PostBuild.sh b/DuetPkg/PostBuild.sh
+index c77c0f3..99dae60 100755
+--- a/DuetPkg/PostBuild.sh
++++ b/DuetPkg/PostBuild.sh
+@@ -34,7 +34,7 @@ if [ \
+    ]
+ then
+ 	echo Error! Please specific the architecture. 
+-	echo Usage: "./PostBuild.sh [IA32|X64] [UNIXGCC|GCC44]"
++	echo Usage: "./PostBuild.sh [IA32|X64] [UNIXGCC|GCC44|GCC45|GCC46|GCC47|GCC48] [DEBUG|RELEASE]"
+ fi
+ 
+ case "$1" in
+@@ -56,13 +56,36 @@ case "$2" in
+    GCC44)
+      export TOOLTAG=GCC44
+      ;;
++   GCC45)
++     export TOOLTAG="GCC45"
++     ;;
++   GCC46)
++     export TOOLTAG="GCC46"
++     ;;
++   GCC47)
++     export TOOLTAG="GCC47"
++     ;;
++   GCC48)
++     export TOOLTAG="GCC48"
++     ;;
+    *)
+      echo Invalid tool tag, should be only UNIXGCC or GCC44
+      return 1
+ esac
+ 
+-export BUILD_DIR=$WORKSPACE/Build/DuetPkg$PROCESSOR/DEBUG_$TOOLTAG
+-
++case "$3" in
++   DEBUG)
++     export BUILDTARGET="DEBUG"
++     ;;
++   RELEASE)
++     export BUILDTARGET="RELEASE"
++     ;;
++   *)
++     echo Invalid Build target, should be only DEBUG or RELEASE
++     return 1
++esac
++ 
++export BUILD_DIR=$WORKSPACE/Build/DuetPkg$PROCESSOR/"$BUILDTARGET"_"$TOOLTAG"
+ 
+ #
+ # Boot sector module could only be built under IA32 tool chain
+@@ -75,7 +98,7 @@ echo Compressing DxeMain.efi ...
+ $BASETOOLS_DIR/LzmaCompress -e -o $BUILD_DIR/FV/DxeMain.z $BUILD_DIR/$PROCESSOR/DxeCore.efi
+ 
+ echo Compressing DxeIpl.efi ...
+-$BASETOOLS_DIR/LzmaCompress -e -o $BUILD_DIR/FV/DxeIpl.z $BUILD_DIR/$PROCESSOR/DxeIpl.efi	
++$BASETOOLS_DIR/LzmaCompress -e -o $BUILD_DIR/FV/DxeIpl.z $BUILD_DIR/$PROCESSOR/DxeIpl.efi
+ 
+ echo Generate Loader Image ...
+ 
+diff --git a/DuetPkg/build64.sh b/DuetPkg/build64.sh
+index d215116..d80a1de 100755
+--- a/DuetPkg/build64.sh
++++ b/DuetPkg/build64.sh
+@@ -38,6 +38,7 @@ else
+ fi
+ 
+ PROCESSOR=X64
++BUILDTARGET=RELEASE
+ 
+ #
+ # Pick a default tool type for a given OS
+@@ -56,12 +57,12 @@ case `uname` in
+       fi
+       ;;
+   Linux*)
+-    TARGET_TOOLS=GCC44
++    TARGET_TOOLS=GCC47
+     ;;
+ 
+ esac
+ 
+-BUILD_ROOT_ARCH=$WORKSPACE/Build/DuetPkg$PROCESSOR/DEBUG_"$TARGET_TOOLS"/$PROCESSOR
++BUILD_ROOT_ARCH=$WORKSPACE/Build/DuetPkg$PROCESSOR/"$BUILDTARGET"_"$TARGET_TOOLS"/$PROCESSOR
+ FLOPPY_IMAGE=$WORKSPACE/Build/DuetPkg$PROCESSOR/floppy.img
+ 
+ if  [[ ! -f `which build` || ! -f `which GenFv` ]];
+@@ -89,12 +90,12 @@ do
+ 
+   if [[ $arg == cleanall ]]; then
+     make -C $WORKSPACE/BaseTools clean
+-    build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -t $TARGET_TOOLS -n 3 clean
++    build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -b $BUILDTARGET -t $TARGET_TOOLS -n 3 clean
+     exit $?
+   fi
+ 
+   if [[ $arg == clean ]]; then
+-    build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -t $TARGET_TOOLS -n 3 clean
++    build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -b $BUILDTARGET -t $TARGET_TOOLS -n 3 clean
+     exit $?
+   fi
+ done
+@@ -104,11 +105,11 @@ done
+ # Build the edk2 DuetPkg
+ #
+ echo Running edk2 build for DuetPkg$PROCESSOR
+-build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -t $TARGET_TOOLS -n 3 $*
++build -p $WORKSPACE/DuetPkg/DuetPkg$PROCESSOR.dsc -a $PROCESSOR -b $BUILDTARGET -t $TARGET_TOOLS -n 3 $*
+ echo Running DuetPkg/PostBuild.sh
+-$WORKSPACE/DuetPkg/PostBuild.sh $PROCESSOR $TARGET_TOOLS
++$WORKSPACE/DuetPkg/PostBuild.sh $PROCESSOR $TARGET_TOOLS $BUILDTARGET
+ echo Running DuetPkg/CreateBootDisk.sh
+ 
+-$WORKSPACE/DuetPkg/CreateBootDisk.sh file $FLOPPY_IMAGE /dev/null FAT12 $PROCESSOR $TARGET_TOOLS
++$WORKSPACE/DuetPkg/CreateBootDisk.sh file $FLOPPY_IMAGE /dev/null FAT12 $PROCESSOR $TARGET_TOOLS $BUILDTARGET
+ exit $?
+ 
